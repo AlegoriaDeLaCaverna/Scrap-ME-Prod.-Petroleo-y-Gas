@@ -188,7 +188,7 @@ if st.button("Procesar Datos y Generar Excel", type="primary"):
     nombre_empresa_limpio = empresa_elegida.replace(' ', '_').replace('/', '-')
     nombre_archivo = f"Reporte_{fluido_archivo}_{tipo_archivo}_{nombre_empresa_limpio}.xlsx"
     
-    st.success("¡El reporte financiero ha sido forjado con éxito, con su respectiva ironía metodológica incluida!")
+    st.success("¡El reporte financiero cruzó el éter hacia su carpeta de descargas!")
     
     st.download_button(
         label="📥 Descargar Archivo Excel",
