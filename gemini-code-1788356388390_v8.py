@@ -16,7 +16,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Configuración visual de la página
 st.set_page_config(page_title="Monitor de Hidrocarburos", layout="wide", page_icon="🛢️")
 
-st.title("Monitor de Producción de Hidrocarburos")
+st.title("🛢️Monitor de Producción de Hidrocarburos🛢️")
 st.markdown("Datos crudos extraídos del Ministerio de Energía, estandarizados a métricas financieras (Kbbl y KBoe).")
 
 # Catálogo de fuentes con títulos depurados
@@ -76,7 +76,7 @@ url_csv, nombre_fluido, unidad_medida = diccionario_fuentes[seleccion_fuente]
 es_petroleo = "Petróleo" in nombre_fluido
 es_promedio = "Promedio" in nombre_fluido
 
-with st.spinner('Extrayendo pergaminos del Ministerio...'):
+with st.spinner('⏳Extrayendo pergaminos del Ministerio...⏳'):
     df, cols_metricas = cargar_datos(url_csv)
 
 anios_disponibles = sorted(df['anio'].unique().tolist())
@@ -215,7 +215,7 @@ if st.session_state.procesar_clicked:
     # --- BOTÓN DE DESCARGA FINAL ---
     st.markdown("---")
     st.download_button(
-        label="Descargar Archivo Excel",
+        label="👨‍💻Descargar Archivo Excel",
         data=buffer,
         file_name=nombre_archivo,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
