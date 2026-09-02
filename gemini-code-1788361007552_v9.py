@@ -9,17 +9,14 @@ import urllib3
 import io
 import warnings
 
-# Silenciamos las alarmas del Estado
 warnings.filterwarnings('ignore')
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Configuración visual de la página
 st.set_page_config(page_title="Monitor de Hidrocarburos", layout="wide", page_icon="🛢️")
 
 st.title("🛢️Monitor de Producción de Hidrocarburos🛢️")
 st.markdown("Datos crudos extraídos del Ministerio de Energía, estandarizados a métricas financieras (Kbbl y KBoe).")
 
-# Catálogo de fuentes con títulos depurados
 diccionario_fuentes = {
     'Petróleo: Producción Total': ("http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/4cc61040-aa44-440d-a912-91bd6c26b8a7/download/produccin-petrleo-sesco-tight-y-shale-captulo-iv-por-empresa.csv", "Petróleo Total", "m3"),
     'Petróleo: Promedio Diario': ("http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/2c1f455e-0103-4d51-8f94-a49c939ac0a1/download/produccin-de-petrleo-promedio-diaria-por-empresa.csv", "Petróleo Promedio", "m3/día"),
@@ -27,7 +24,6 @@ diccionario_fuentes = {
     'Gas: Promedio Diario': ("http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/419094dd-2905-4ac3-9398-e81513013e5e/download/produccin-de-gas-promedio-diaria-por-empresa.csv", "Gas Promedio", "Miles de m3/día")
 }
 
-# --- MOTOR DE INGESTA CON CACHÉ ---
 @st.cache_data(show_spinner=False)
 def cargar_datos(url):
     try:
@@ -65,7 +61,6 @@ def cargar_datos(url):
     
     return df, cols_metricas
 
-# --- INTERFAZ WEB ---
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -87,7 +82,6 @@ with col2:
     anio_desde, anio_hasta = st.slider("📏Rango de Años:", min_value=min(anios_disponibles), max_value=max(anios_disponibles), value=(min(anios_disponibles), max(anios_disponibles)))
     empresa_elegida = st.selectbox("🏭Seleccione una Empresa:", lista_empresas)
     
-    # Menú táctico de variables (solo aparece si la base tiene desglose)
     if es_desglosable:
         tipo_grafico = st.radio("📈 Variables a graficar:", ["Total Consolidado", "Convencional vs No Convencional"])
     else:
@@ -124,7 +118,7 @@ if st.session_state.procesar_clicked:
         
     df_agrupado = df_agrupado.sort_values('Periodo')
     
-    # --- LA INGENIERÍA FINANCIERA ---
+    # --- LA INGENIERÍA FINANCIERA (CORREGIDA) ---
     factor_conversion = 6.2898 / 1000
 
     if es_petroleo:
@@ -136,9 +130,12 @@ if st.session_state.procesar_clicked:
 
     nombre_col_nueva = f"{'Promedio' if es_promedio else 'Total'} Consolidado ({acronimo_final})"
     
-    # Matemática de Bifurcación Geológica
+    # 1. Calculamos la columna matriz antes que cualquier otra cosa
+    suma_cruda = df_agrupado[cols_grafico].sum(axis=1)
+    df_agrupado[nombre_col_nueva] = (suma_cruda * factor_conversion).round(2)
+    
+    # 2. Ejecutamos la bifurcación geológica
     if se_puede_desglosar:
-        # Detectamos automáticamente las columnas crudas de No Convencional
         cols_no_conv_raw = [c for c in cols_grafico if any(k in str(c).lower() for k in ['shale', 'tight', 'no convencional'])]
         cols_conv_raw = [c for c in cols_grafico if c not in cols_no_conv_raw]
         
@@ -153,7 +150,6 @@ if st.session_state.procesar_clicked:
         
         cols_to_graph_web = [col_conv_convrt, col_noconv_convrt] if tipo_grafico == "Convencional vs No Convencional" else [nombre_col_nueva]
         
-        # Reordenamos el DataFrame para que el Excel lo lea secuencialmente de forma perfecta
         columnas_finales = ['Periodo'] + cols_grafico + [col_conv_convrt, col_noconv_convrt, nombre_col_nueva]
         df_agrupado = df_agrupado[columnas_finales]
     else:
@@ -161,16 +157,12 @@ if st.session_state.procesar_clicked:
         columnas_finales = ['Periodo'] + cols_grafico + [nombre_col_nueva]
         df_agrupado = df_agrupado[columnas_finales]
 
-    suma_cruda = df_agrupado[cols_grafico].sum(axis=1)
-    df_agrupado[nombre_col_nueva] = (suma_cruda * factor_conversion).round(2)
-
     # --- VITRINA DE PREVISUALIZACIÓN WEB ---
     st.markdown("---")
     st.subheader(f"📊Vista Previa: {nombre_fluido} - {empresa_elegida}")
     
     df_grafico_web = df_agrupado.set_index('Periodo')[cols_to_graph_web]
     st.line_chart(df_grafico_web, y_label=unidad_final)
-    
     st.dataframe(df_agrupado, use_container_width=True)
 
     # --- CREACIÓN DEL EXCEL EN MEMORIA RAM ---
@@ -212,7 +204,6 @@ if st.session_state.procesar_clicked:
     chart.y_axis.tickLblPos = "low"
     chart.y_axis.numFmt = '#,##0'
     
-    # Apuntamos dinámicamente las coordenadas según la elección del usuario
     if se_puede_desglosar and tipo_grafico == "Convencional vs No Convencional":
         min_c = len(columnas_finales) - 2 
         max_c = len(columnas_finales) - 1
