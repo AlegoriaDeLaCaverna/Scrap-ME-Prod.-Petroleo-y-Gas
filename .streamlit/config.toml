@@ -1,6 +1,6 @@
 [theme]
 # Color principal para botones y acentos (Ejemplo: Un azul petrolero)
-primaryColor = "#1f77b4"
+primaryColor = "000000"
 
 # Color del fondo principal de la página
 backgroundColor = "#0D3552"
