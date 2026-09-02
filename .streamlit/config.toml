@@ -9,7 +9,7 @@ backgroundColor = "#0D3552"
 secondaryBackgroundColor = "#f0f2f6"
 
 # Color de las letras
-textColor = "#D7DEFA"
+textColor = "000000"
 
 # Tipografía (Opciones permitidas: "sans serif", "serif", "monospace")
 font = "monospace"
