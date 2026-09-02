@@ -83,14 +83,14 @@ anios_disponibles = sorted(df['anio'].unique().tolist())
 lista_empresas = ['(Todas)'] + sorted(df['empresa'].unique().tolist())
 
 with col2:
-    anio_desde, anio_hasta = st.slider("Rango de Años:", min_value=min(anios_disponibles), max_value=max(anios_disponibles), value=(min(anios_disponibles), max(anios_disponibles)))
-    empresa_elegida = st.selectbox("Seleccione una Empresa:", lista_empresas)
+    anio_desde, anio_hasta = st.slider("📏Rango de Años:", min_value=min(anios_disponibles), max_value=max(anios_disponibles), value=(min(anios_disponibles), max(anios_disponibles)))
+    empresa_elegida = st.selectbox("🏭Seleccione una Empresa:", lista_empresas)
 
 # Inicializamos la memoria de estado para que no desaparezcan los datos al descargar
 if 'procesar_clicked' not in st.session_state:
     st.session_state.procesar_clicked = False
 
-if st.button("Procesar y Previsualizar", type="primary"):
+if st.button("🎯Procesar y Previsualizar", type="primary"):
     st.session_state.procesar_clicked = True
 
 # Si el usuario ya hizo click en procesar, ejecutamos el motor
@@ -140,7 +140,7 @@ if st.session_state.procesar_clicked:
 
     # --- VITRINA DE PREVISUALIZACIÓN WEB ---
     st.markdown("---")
-    st.subheader(f"Vista Previa: {nombre_fluido} - {empresa_elegida}")
+    st.subheader(f"📊Vista Previa: {nombre_fluido} - {empresa_elegida}")
     
     # Preparamos los datos para que el gráfico web entienda el eje temporal a la perfección
     df_grafico_web = df_agrupado.set_index('Periodo')[nombre_col_nueva]
