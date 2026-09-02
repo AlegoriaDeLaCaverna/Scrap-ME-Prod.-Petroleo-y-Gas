@@ -140,7 +140,7 @@ if st.session_state.procesar_clicked:
 
     # --- VITRINA DE PREVISUALIZACIÓN WEB ---
     st.markdown("---")
-    st.subheader(f"📊 Vista Previa: {nombre_fluido} - {empresa_elegida}")
+    st.subheader(f"Vista Previa: {nombre_fluido} - {empresa_elegida}")
     
     # Preparamos los datos para que el gráfico web entienda el eje temporal a la perfección
     df_grafico_web = df_agrupado.set_index('Periodo')[nombre_col_nueva]
@@ -215,7 +215,7 @@ if st.session_state.procesar_clicked:
     # --- BOTÓN DE DESCARGA FINAL ---
     st.markdown("---")
     st.download_button(
-        label="📥 Todo en orden. Descargar Archivo Excel",
+        label="Descargar Archivo Excel",
         data=buffer,
         file_name=nombre_archivo,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
