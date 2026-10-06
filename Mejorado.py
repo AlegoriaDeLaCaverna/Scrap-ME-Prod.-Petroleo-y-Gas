@@ -131,7 +131,7 @@ with col_estrat2:
                 grupos_definidos[nombre_g] = sociedades_g
 
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🎯 Procesar y Renderizar Motor Gráfico", type="primary", use_container_width=True):
+if st.button("🎯 Procesar Gráfico", type="primary", use_container_width=True):
     st.session_state.procesar_clicked = True
 
 if st.session_state.procesar_clicked:
@@ -148,7 +148,7 @@ if st.session_state.procesar_clicked:
     # ================= RAMA 1: COMPARACIÓN =================
     if modo_analisis == "Comparar Grupos/Empresas":
         if not grupos_definidos:
-            st.warning("Debe definir al menos un competidor bautizado y con sociedades asignadas.")
+            st.warning("Debe definir al menos un competidor.")
             st.stop()
             
         dfs_grupos = []
