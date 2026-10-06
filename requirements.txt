@@ -1,5 +1,7 @@
 streamlit
 pandas
-numpy
+requests
 openpyxl
-urllib3
+xlrd
+python-dateutil
+plotly
