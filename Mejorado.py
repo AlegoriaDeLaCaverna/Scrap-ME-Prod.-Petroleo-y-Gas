@@ -131,7 +131,7 @@ with col_estrat2:
                 grupos_definidos[nombre_g] = sociedades_g
 
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("🎯 Procesar Gráfico", type="primary", use_container_width=True):
+if st.button("🎯 Procesar y Renderizar Motor Gráfico", type="primary", use_container_width=True):
     st.session_state.procesar_clicked = True
 
 if st.session_state.procesar_clicked:
@@ -141,14 +141,16 @@ if st.session_state.procesar_clicked:
     if es_petroleo:
         unidad_final = "Miles de Barriles/día" if es_promedio else "Miles de Barriles"
         acronimo_final = "Kbbl/d" if es_promedio else "Kbbl"
+        texto_calc_str = "m3 * 6,2898 / 1.000 = Kbbl."
     else:
         unidad_final = "Miles de BOE/día" if es_promedio else "Miles de BOE"
         acronimo_final = "KBoe/d" if es_promedio else "KBoe"
+        texto_calc_str = "Mm3 * 6,2898 / 1.000 = KBoe."
 
     # ================= RAMA 1: COMPARACIÓN =================
     if modo_analisis == "Comparar Grupos/Empresas":
         if not grupos_definidos:
-            st.warning("Debe definir al menos un competidor.")
+            st.warning("Debe definir al menos un competidor bautizado y con sociedades asignadas.")
             st.stop()
             
         dfs_grupos = []
@@ -162,7 +164,6 @@ if st.session_state.procesar_clicked:
             st.warning("El pozo está seco para las sociedades seleccionadas en este rango temporal.")
             st.stop()
             
-        # Creamos fecha real para Plotly
         df_filtrado['Fecha'] = pd.to_datetime(df_filtrado['anio'].astype(str) + '-' + df_filtrado['mes'].astype(str) + '-01')
         df_filtrado['Periodo_Str'] = df_filtrado['anio'].astype(str) + "-" + df_filtrado['mes'].astype(str).str.zfill(2)
         col_valor = cols_metricas[0]
@@ -232,25 +233,23 @@ if st.session_state.procesar_clicked:
             cols_to_graph_web = [nombre_col_nueva]
             encabezados_excel = ['Período'] + [str(col).replace('_', ' ').title() for col in cols_grafico] + [nombre_col_nueva]
 
-   # --- VITRINA GRÁFICA PLOTLY ---
+    # --- VITRINA GRÁFICA PLOTLY ---
     st.markdown("---")
     st.subheader(f"📊 {nombre_fluido} - {nombre_empresa_reporte}")
     
     df_melted = df_final.melt(id_vars=['Fecha'], value_vars=cols_to_graph_web, var_name='Categoría', value_name='Volumen')
-    
-    # Formateamos la fecha a string YYYY-MM directamente en el dataframe para el hover
     df_melted['Periodo_Format'] = df_melted['Fecha'].dt.strftime('%Y-%m')
 
     fig = px.line(df_melted, x='Fecha', y='Volumen', color='Categoría',
                   labels={'Volumen': f'Volumen ({unidad_final})', 'Fecha': ''})
     
-    # Aplicamos el hovertemplate para lograr la limpieza institucional
+    # Hover impecable, sin variables en inglés ni signos de igual
     fig.update_traces(
         line_width=2.5,
         hovertemplate="<br>".join([
             "Periodo: %{customdata[0]}",
             "%{data.name}: %{y:,.2f}"
-        ]) + "<extra></extra>", # extra></extra> oculta el recuadro secundario molesto de Plotly
+        ]) + "<extra></extra>",
         customdata=df_melted[['Periodo_Format']]
     )
     
@@ -262,9 +261,25 @@ if st.session_state.procesar_clicked:
         legend_title_text='',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=0, r=0, t=30, b=0),
-        hovermode="x unified" # Hace que la línea vertical cruce el gráfico al pasar el mouse
+        hovermode="x unified" 
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # --- FOOTER METODOLÓGICO PARA CAPTURAS ---
+    st.markdown(f"""
+    <div style='background-color: #f8f9fa; padding: 12px 15px; border-radius: 0px 0px 8px 8px; border-left: 4px solid #1f77b4; font-size: 13px; color: #555; line-height: 1.6; margin-top: -18px; margin-bottom: 25px;'>
+        <b style='color: #2c3e50;'>NOTAS Y FUENTES METODOLÓGICAS</b><br>
+        • <b>Base de datos:</b> Producción de Petróleo y Gas (SESCO), Min. de Economía.<br>
+        • <b>Conversión:</b> Tabla Pampa Energía (<i>Cálculo: {texto_calc_str}</i>).<br>
+        • <b>Aclaración:</b> Las fuentes oficiales asignan el 100% al operador técnico, difiriendo de los balances corporativos (Working Interest).
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("Ver y auditar tabla de datos crudos"):
+        df_mostrar = df_final.drop(columns=['Fecha']).copy()
+        df_mostrar.rename(columns={'Periodo_Str': 'Periodo'}, inplace=True)
+        st.dataframe(df_mostrar, use_container_width=True)
+
     # --- CREACIÓN DEL EXCEL ---
     wb = Workbook()
     ws = wb.active
@@ -272,7 +287,6 @@ if st.session_state.procesar_clicked:
     
     ws.append(encabezados_excel)
     
-    # Preparamos el df para el excel (sin la columna Fecha de datetime)
     df_excel = df_final.drop(columns=['Fecha']).copy()
     
     for r in dataframe_to_rows(df_excel, index=False, header=False):
@@ -280,12 +294,12 @@ if st.session_state.procesar_clicked:
         
     fila_notas = ws.max_row + 2
     ws.cell(row=fila_notas, column=1, value="NOTAS Y FUENTES METODOLÓGICAS:").font = Font(bold=True, italic=True)
-    ws.cell(row=fila_notas + 1, column=1, value="• Base de datos: Producción de Petróleo y Gas (SESCO), Min. de Economía.")
-    ws.cell(row=fila_notas + 2, column=1, value="• Conversión: Tabla Pampa Energía.")
-    ws.cell(row=fila_notas + 3, column=1, value="• Aclaración: Las fuentes oficiales asignan 100% al operador técnico, difiriendo de los balances (Working Interest).")
+    ws.cell(row=fila_notas + 1, column=1, value="• Base de datos original: Producción de Petróleo y Gas (SESCO), Secretaría de Energía, Ministerio de Economía.")
+    ws.cell(row=fila_notas + 2, column=1, value="• Factores de conversión: Tabla de Conversiones, Pampa Energía.")
+    ws.cell(row=fila_notas + 3, column=1, value="• Aclaración de titularidad: La divergencia entre los registros estatales y los balances corporativos radica en el criterio de imputación. Las fuentes oficiales asignan el 100% de la extracción al operador técnico del área, mientras que las empresas reportan su producción según su porcentaje de participación societaria (Working Interest).")
     
-    if es_petroleo: ws.cell(row=fila_notas + 4, column=1, value="• Cálculo: m3 * 6,2898 / 1.000 = Kbbl.")
-    else: ws.cell(row=fila_notas + 4, column=1, value="• Cálculo: Mm3 * 6,2898 / 1.000 = KBoe.")
+    if es_petroleo: ws.cell(row=fila_notas + 4, column=1, value="• Cálculo Petróleo: Se multiplican los metros cúbicos (m3) por 6,2898 y se dividen por 1.000 para obtener Miles de Barriles (Kbbl).")
+    else: ws.cell(row=fila_notas + 4, column=1, value="• Cálculo Gas: Se trata el dato reportado en Mm3 como equivalente directo a m3 de petróleo. Se multiplica por 6,2898 y se divide por 1.000 para obtener Miles de Barriles Equivalentes de Petróleo (KBoe).")
     
     # --- GRÁFICO EXCEL ---
     chart = LineChart()
