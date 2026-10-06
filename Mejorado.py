@@ -232,16 +232,27 @@ if st.session_state.procesar_clicked:
             cols_to_graph_web = [nombre_col_nueva]
             encabezados_excel = ['Período'] + [str(col).replace('_', ' ').title() for col in cols_grafico] + [nombre_col_nueva]
 
-    # --- VITRINA GRÁFICA PLOTLY ---
+   # --- VITRINA GRÁFICA PLOTLY ---
     st.markdown("---")
     st.subheader(f"📊 {nombre_fluido} - {nombre_empresa_reporte}")
     
-    # Transformamos el DataFrame para que Plotly dibuje múltiples líneas con facilidad
     df_melted = df_final.melt(id_vars=['Fecha'], value_vars=cols_to_graph_web, var_name='Categoría', value_name='Volumen')
     
+    # Formateamos la fecha a string YYYY-MM directamente en el dataframe para el hover
+    df_melted['Periodo_Format'] = df_melted['Fecha'].dt.strftime('%Y-%m')
+
     fig = px.line(df_melted, x='Fecha', y='Volumen', color='Categoría',
-                  hover_data={"Fecha": "|%B %Y", "Volumen": ":.2f"},
                   labels={'Volumen': f'Volumen ({unidad_final})', 'Fecha': ''})
+    
+    # Aplicamos el hovertemplate para lograr la limpieza institucional
+    fig.update_traces(
+        line_width=2.5,
+        hovertemplate="<br>".join([
+            "Periodo: %{customdata[0]}",
+            "%{data.name}: %{y:,.2f}"
+        ]) + "<extra></extra>", # extra></extra> oculta el recuadro secundario molesto de Plotly
+        customdata=df_melted[['Periodo_Format']]
+    )
     
     fig.update_layout(
         xaxis=dict(tickformat="%b %Y", showgrid=True, gridcolor='rgba(200, 200, 200, 0.2)'),
@@ -250,16 +261,10 @@ if st.session_state.procesar_clicked:
         paper_bgcolor='rgba(0,0,0,0)',
         legend_title_text='',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=0, r=0, t=30, b=0)
+        margin=dict(l=0, r=0, t=30, b=0),
+        hovermode="x unified" # Hace que la línea vertical cruce el gráfico al pasar el mouse
     )
     st.plotly_chart(fig, use_container_width=True)
-
-    with st.expander("Ver y auditar tabla de datos crudos"):
-        # Limpiamos para mostrar en la web
-        df_mostrar = df_final.drop(columns=['Fecha']).copy()
-        df_mostrar.rename(columns={'Periodo_Str': 'Periodo'}, inplace=True)
-        st.dataframe(df_mostrar, use_container_width=True)
-
     # --- CREACIÓN DEL EXCEL ---
     wb = Workbook()
     ws = wb.active
