@@ -19,68 +19,74 @@ st.set_page_config(
 
 st.title("🛢️Monitor de Producción de Hidrocarburos🛢️")
 st.markdown(
-    "Datos crudos extraídos del Ministerio de Energía, estandarizados a"
-    " métricas financieras (Kbbl y KBoe)."
+    "Datos extraídos del Ministerio de Energía o cargados manualmente en caso"
+    " de caída del servidor oficial."
 )
 
 diccionario_fuentes = {
     "Petróleo: Producción Total": (
         (
-            "http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/4cc61040-aa44-440d-a912-91bd6c26b8a7/download/produccin-petrleo-sesco-tight-y-shale-captulo-iv-por-empresa.csv"
+            "https://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/4cc61040-aa44-440d-a912-91bd6c26b8a7/download/produccin-petrleo-sesco-tight-y-shale-captulo-iv-por-empresa.csv"
         ),
         "Petróleo Total",
         "m3",
     ),
     "Petróleo: Promedio Diario": (
         (
-            "http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/2c1f455e-0103-4d51-8f94-a49c939ac0a1/download/produccin-de-petrleo-promedio-diaria-por-empresa.csv"
+            "https://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/2c1f455e-0103-4d51-8f94-a49c939ac0a1/download/produccin-de-petrleo-promedio-diaria-por-empresa.csv"
         ),
         "Petróleo Promedio",
         "m3/día",
     ),
     "Gas: Producción Total": (
         (
-            "http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/63129e00-6a96-4d6e-9ce1-9e6c60287e16/download/produccin-gas-sesco-tight-y-shale-captulo-iv-por-empresa.csv"
+            "https://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/63129e00-6a96-4d6e-9ce1-9e6c60287e16/download/produccin-gas-sesco-tight-y-shale-captulo-iv-por-empresa.csv"
         ),
         "Gas Total",
         "Miles de m3",
     ),
     "Gas: Promedio Diario": (
         (
-            "http://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/419094dd-2905-4ac3-9398-e81513013e5e/download/produccin-de-gas-promedio-diaria-por-empresa.csv"
+            "https://datos.energia.gob.ar/dataset/590d1284-fd6d-4686-afd8-b3da5d90a6e9/resource/419094dd-2905-4ac3-9398-e81513013e5e/download/produccin-de-gas-promedio-diaria-por-empresa.csv"
         ),
         "Gas Promedio",
         "Miles de m3/día",
     ),
 }
 
+# --- BARRA LATERAL / CONTROLES ---
+col1, col2 = st.columns([2, 1])
 
-@st.cache_data(show_spinner=False)
-def cargar_datos(url):
+with col1:
+  seleccion_fuente = st.selectbox(
+      "Seleccione el origen de datos:", list(diccionario_fuentes.keys())
+  )
+
+url_csv, nombre_fluido, unidad_medida = diccionario_fuentes[seleccion_fuente]
+
+es_petroleo = "Petróleo" in nombre_fluido
+es_promedio = "Promedio" in nombre_fluido
+es_desglosable = "Total" in seleccion_fuente
+
+# Selector de modo de carga (Automático vs Manual por caída del servidor)
+modo_carga = st.radio(
+    "Modo de obtención de datos:",
+    ["Automático (Internet)", "Manual (Subir archivo CSV local)"],
+    horizontal=True,
+)
+
+
+def procesar_dataframe(content_or_path):
   try:
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        )
-    }
-    response = requests.get(url, headers=headers, timeout=15, verify=False)
-    response.raise_for_status()
-
-    content = io.BytesIO(response.content)
-    try:
-      df = pd.read_csv(
-          content, encoding="utf-8-sig", sep=None, engine="python"
-      )
-    except UnicodeDecodeError:
-      content.seek(0)
-      df = pd.read_csv(content, encoding="latin-1", sep=None, engine="python")
-
-  except requests.exceptions.RequestException as e:
-    st.error(
-        "❌ **Error de conexión con el servidor del Ministerio de Energía:** No"
-        f" se pudo descargar el archivo CSV.\n\nDetalle técnico: `{e}`"
+    df = pd.read_csv(
+        content_or_path, encoding="utf-8-sig", sep=None, engine="python"
     )
-    st.stop()
+  except UnicodeDecodeError:
+    if hasattr(content_or_path, "seek"):
+      content_or_path.seek(0)
+    df = pd.read_csv(
+        content_or_path, encoding="latin-1", sep=None, engine="python"
+    )
 
   df.columns = df.columns.str.lower().str.strip().str.replace("ï»¿", "")
 
@@ -119,21 +125,44 @@ def cargar_datos(url):
   return df, cols_metricas
 
 
-col1, col2 = st.columns([2, 1])
+# CARGA DE DATOS SEGÚN EL MODO ELEGIDO
+df = None
+cols_metricas = []
 
-with col1:
-  seleccion_fuente = st.selectbox(
-      "Seleccione el origen de datos:", list(diccionario_fuentes.keys())
+if modo_carga == "Automático (Internet)":
+  with st.spinner("⏳ Conectando con los servidores del Ministerio..."):
+    try:
+      headers = {
+          "User-Agent": (
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          )
+      }
+      response = requests.get(url_csv, headers=headers, timeout=15, verify=False)
+      response.raise_for_status()
+      content = io.BytesIO(response.content)
+      df, cols_metricas = procesar_dataframe(content)
+    except requests.exceptions.RequestException as e:
+      st.error(
+          "❌ **El servidor del Ministerio de Energía no responde (Timeout o"
+          " caída).**\n\nTe sugerimos cambiar a la opción **'Manual (Subir"
+          " archivo CSV local)'** arriba, descargar el CSV directamente desde"
+          f" la web oficial y subirlo aquí.\n\nDetalle técnico: `{e}`"
+      )
+      st.stop()
+else:
+  st.info(
+      "📁 **Modo Manual Activo:** Si el servidor oficial está caído, puedes"
+      " descargar el archivo correspondiente desde el portal de datos abiertos"
+      " del ministerio y subirlo aquí:"
   )
-
-url_csv, nombre_fluido, unidad_medida = diccionario_fuentes[seleccion_fuente]
-
-es_petroleo = "Petróleo" in nombre_fluido
-es_promedio = "Promedio" in nombre_fluido
-es_desglosable = "Total" in seleccion_fuente
-
-with st.spinner("⏳Extrayendo pergaminos del Ministerio...⏳"):
-  df, cols_metricas = cargar_datos(url_csv)
+  archivo_subido = st.file_uploader(
+      "Sube el archivo CSV del Ministerio:", type=["csv"]
+  )
+  if archivo_subido is not None:
+    df, cols_metricas = procesar_dataframe(archivo_subido)
+  else:
+    st.warning("⚠️ Por favor, sube un archivo CSV para continuar.")
+    st.stop()
 
 anios_disponibles = sorted(df["anio"].unique().tolist())
 lista_empresas = ["(Todas)"] + sorted(df["empresa"].unique().tolist())
